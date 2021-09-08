@@ -1,0 +1,13 @@
+(ns boids.config)
+
+(def frame-rate 30)
+(def background-shade 63)
+(def num-boids 256)
+(def boid-shade 191)
+(def boid-stroke-shade 0)
+(def boid-stroke-weight 2)
+(def boid-speed 2)
+(def boid-size 8)
+(def field-size-x 1024)
+(def field-size-y 633)
+(def smoothing-level 2)
