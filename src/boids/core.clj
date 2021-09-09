@@ -22,13 +22,63 @@
 
 (defn wrap-boundary
  [value max-value]
- (if (> value max-value)
-   (- value max-value)
-   value))
+ (cond (> value max-value) (- value max-value)
+       (< value 0) (+ value max-value)
+       :else value))
+
+(defn heading-to
+  [boid target]
+  (let [relative-x (- (:x target) (:x boid))
+        relative-y (- (:y target) (:y boid))
+        atan2 (q/atan2 relative-y relative-x)]
+    (if (< atan2 0) (+ atan2 q/TWO-PI) atan2)))
+
+(defn within-distance?
+  [point-a point-b distance]
+    (<= (q/dist (:x point-a) (:y point-a)
+                (:x point-b) (:y point-b))
+        distance))
+
+(defn boid-known?
+  [boid-a boid-b]
+  (within-distance? boid-a boid-b c/boid-perception-radius))
+
+(defn known-boids
+ [state boid]
+ (filter #(boid-known? boid %) (:boids state)))
+
+(defn boid-close?
+  [boid-a boid-b]
+  (within-distance? boid-a boid-b c/boid-crowding-radius))
+
+(defn close-boids
+  [state boid]
+  (filter #(boid-close? boid %) (:boids state)))
+
+(defn center-of
+  [boids]
+  (let [boid-count (count boids)]
+    {:x (/ (reduce + (map :x boids)) boid-count)
+     :y (/ (reduce + (map :y boids)) boid-count)}))
+
+(defn heading-of
+  [boids]
+  (/ (reduce + (map :heading boids)) (count boids)))
+
+(defn heading-away
+  [boid target]
+  (mod (+ q/PI (heading-to boid target)) q/TWO-PI))
 
 (defn boid-heading
  [state boid]
- (:heading boid))
+  (let [k-boids (known-boids state boid)
+        c-boids (close-boids state boid)]
+    (if (empty? k-boids)
+      (:heading boid)
+      (/ (+ (heading-to boid (center-of k-boids))
+            (heading-of k-boids)
+            (heading-away boid (center-of c-boids)))
+         3))))
 
 (defn move-boid
   [state boid]
@@ -52,7 +102,7 @@
   state)
 
 (q/defsketch sketch
-  :title "grey circles"
+  :title "boids"
   :size [c/field-size-x c/field-size-y]
   :settings #(q/smooth c/smoothing-level)
   :setup setup

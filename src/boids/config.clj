@@ -8,6 +8,8 @@
 (def boid-stroke-weight 2)
 (def boid-speed 2)
 (def boid-size 8)
+(def boid-perception-radius 128)
+(def boid-crowding-radius 32)
 (def field-size-x 1024)
 (def field-size-y 633)
 (def smoothing-level 2)
