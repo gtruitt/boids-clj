@@ -100,8 +100,11 @@
       (heading-to boid (center-of k-boids)))))
 
 (defn move-boid
-  [rule state boid]
-  (let [new-heading (rule state boid)
+  [state boid]
+  (let [new-heading (average-angle [(:heading boid)
+                                    (separation state boid)
+                                    (alignment state boid)
+                                    (cohesion state boid)])
         new-x (+ (:x boid) (* c/boid-speed (q/cos new-heading)))
         new-y (+ (:y boid) (* c/boid-speed (q/sin new-heading)))]
     {:x (wrap-boundary new-x c/field-size-x)
@@ -111,10 +114,7 @@
 
 (defn update-state
   [state]
-  (-> state
-      (update :boids #(map (partial move-boid separation state) %))
-      (update :boids #(map (partial move-boid alignment state) %))
-      (update :boids #(map (partial move-boid cohesion state) %))))
+  (update state :boids #(map (partial move-boid state) %)))
 
 (defn draw-state
   [state]
