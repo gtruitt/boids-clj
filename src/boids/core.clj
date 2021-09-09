@@ -9,6 +9,7 @@
   {:x (q/random (q/width))
    :y (q/random (q/height))
    :heading (q/random q/TWO-PI)
+   :speed (q/random c/boid-min-speed c/boid-max-speed)
    :id (UUID/randomUUID)})
 
 (defn setup
@@ -25,13 +26,6 @@
  (cond (> value max-value) (- value max-value)
        (< value 0) (+ value max-value)
        :else value))
-
-(defn heading-to
-  [boid target]
-  (let [relative-x (- (:x target) (:x boid))
-        relative-y (- (:y target) (:y boid))
-        atan2 (q/atan2 relative-y relative-x)]
-    (if (< atan2 0) (+ atan2 q/TWO-PI) atan2)))
 
 (defn within-distance?
   [point-a point-b distance]
@@ -69,14 +63,21 @@
     {:x (/ (reduce + (map :x boids)) boid-count)
      :y (/ (reduce + (map :y boids)) boid-count)}))
 
-(defn average-angle
-  [angles]
-  (q/atan2 (reduce + (map #(q/sin %) angles))
-           (reduce + (map #(q/cos %) angles))))
+(defn heading-to
+  [boid target]
+  (let [relative-x (- (:x target) (:x boid))
+        relative-y (- (:y target) (:y boid))
+        atan2 (q/atan2 relative-y relative-x)]
+    (if (< atan2 0) (+ atan2 q/TWO-PI) atan2)))
 
 (defn heading-away
   [boid target]
   (mod (+ q/PI (heading-to boid target)) q/TWO-PI))
+
+(defn average-angle
+  [angles]
+  (q/atan2 (reduce + (map #(q/sin %) angles))
+           (reduce + (map #(q/cos %) angles))))
 
 (defn separation
   [state boid]
@@ -99,18 +100,22 @@
       (:heading boid)
       (heading-to boid (center-of k-boids)))))
 
+(defn boid-heading
+  [state boid]
+  (average-angle [(:heading boid)
+                  (separation state boid)
+                  (alignment state boid)
+                  (cohesion state boid)]))
+
 (defn move-boid
   [state boid]
-  (let [new-heading (average-angle [(:heading boid)
-                                    (separation state boid)
-                                    (alignment state boid)
-                                    (cohesion state boid)])
-        new-x (+ (:x boid) (* c/boid-speed (q/cos new-heading)))
-        new-y (+ (:y boid) (* c/boid-speed (q/sin new-heading)))]
-    {:x (wrap-boundary new-x c/field-size-x)
-     :y (wrap-boundary new-y c/field-size-y)
-     :heading new-heading
-     :id (:id boid)}))
+  (let [new-heading (boid-heading state boid)
+        new-x (+ (:x boid) (* (:speed boid) (q/cos new-heading)))
+        new-y (+ (:y boid) (* (:speed boid) (q/sin new-heading)))]
+    (merge boid
+           {:x (wrap-boundary new-x c/field-size-x)
+            :y (wrap-boundary new-y c/field-size-y)
+            :heading new-heading})))
 
 (defn update-state
   [state]
