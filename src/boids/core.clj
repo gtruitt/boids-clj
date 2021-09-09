@@ -12,6 +12,10 @@
    :speed (q/random c/boid-min-speed c/boid-max-speed)
    :id (UUID/randomUUID)})
 
+(defn random-state
+  []
+  {:boids (take c/num-boids (repeatedly random-boid))})
+
 (defn setup
   []
   (q/frame-rate c/frame-rate)
@@ -19,7 +23,7 @@
   (q/fill c/boid-shade)
   (q/stroke c/boid-stroke-shade)
   (q/stroke-weight c/boid-stroke-weight)
-  {:boids (take c/num-boids (repeatedly random-boid))})
+  (random-state))
 
 (defn wrap-boundary
  [value max-value]
@@ -128,6 +132,10 @@
     (q/ellipse (:x b) (:y b) c/boid-size c/boid-size))
   state)
 
+(defn mouse-released
+  [_state _event]
+  (random-state))
+
 (q/defsketch sketch
   :title "boids"
   :size [c/field-size-x c/field-size-y]
@@ -135,6 +143,7 @@
   :setup setup
   :update update-state
   :draw draw-state
+  :mouse-released mouse-released
   :middleware [m/fun-mode])
 
 (defn -main
