@@ -39,13 +39,19 @@
                 (:x point-b) (:y point-b))
         distance))
 
+(defn boid-different?
+  [boid-a boid-b]
+  (not= (:id boid-a) (:id boid-b)))
+
 (defn boid-known?
   [boid-a boid-b]
   (within-distance? boid-a boid-b c/boid-perception-radius))
 
 (defn known-boids
  [state boid]
- (filter #(boid-known? boid %) (:boids state)))
+ (filter #(and (boid-known? boid %)
+               (boid-different? boid %))
+         (:boids state)))
 
 (defn boid-close?
   [boid-a boid-b]
@@ -53,7 +59,9 @@
 
 (defn close-boids
   [state boid]
-  (filter #(boid-close? boid %) (:boids state)))
+  (filter #(and (boid-close? boid %)
+                (boid-different? boid %))
+          (:boids state)))
 
 (defn center-of
   [boids]
@@ -61,28 +69,39 @@
     {:x (/ (reduce + (map :x boids)) boid-count)
      :y (/ (reduce + (map :y boids)) boid-count)}))
 
-(defn heading-of
-  [boids]
-  (/ (reduce + (map :heading boids)) (count boids)))
+(defn average-angle
+  [angles]
+  (q/atan2 (reduce + (map #(q/sin %) angles))
+           (reduce + (map #(q/cos %) angles))))
 
 (defn heading-away
   [boid target]
   (mod (+ q/PI (heading-to boid target)) q/TWO-PI))
 
-(defn boid-heading
- [state boid]
-  (let [k-boids (known-boids state boid)
-        c-boids (close-boids state boid)]
+(defn separation
+  [state boid]
+  (let [c-boids (close-boids state boid)]
+    (if (empty? c-boids)
+      (:heading boid)
+      (heading-away boid (center-of c-boids)))))
+
+(defn alignment
+  [state boid]
+  (let [k-boids (known-boids state boid)]
     (if (empty? k-boids)
       (:heading boid)
-      (/ (+ (heading-to boid (center-of k-boids))
-            (heading-of k-boids)
-            (heading-away boid (center-of c-boids)))
-         3))))
+      (average-angle (map :heading k-boids)))))
+
+(defn cohesion
+  [state boid]
+  (let [k-boids (known-boids state boid)]
+    (if (empty? k-boids)
+      (:heading boid)
+      (heading-to boid (center-of k-boids)))))
 
 (defn move-boid
-  [state boid]
-  (let [new-heading (boid-heading state boid)
+  [rule state boid]
+  (let [new-heading (rule state boid)
         new-x (+ (:x boid) (* c/boid-speed (q/cos new-heading)))
         new-y (+ (:y boid) (* c/boid-speed (q/sin new-heading)))]
     {:x (wrap-boundary new-x c/field-size-x)
@@ -92,7 +111,10 @@
 
 (defn update-state
   [state]
-  (update state :boids #(map (partial move-boid state) %)))
+  (-> state
+      (update :boids #(map (partial move-boid separation state) %))
+      (update :boids #(map (partial move-boid alignment state) %))
+      (update :boids #(map (partial move-boid cohesion state) %))))
 
 (defn draw-state
   [state]
