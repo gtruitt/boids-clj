@@ -140,7 +140,9 @@
   [_state _event]
   (random-state))
 
-(quil/defsketch sketch
+(defn -main
+  [& _args]
+  (quil/defsketch sketch
     :title          "boids"
     :size           [(:screen-size-x config)
                      (:screen-size-y config)]
@@ -149,7 +151,4 @@
     :update         update-state
     :draw           draw-state
     :mouse-released mouse-released
-    :middleware     [middleware/fun-mode])
-
-(defn -main
-  [& _args])
+    :middleware     [middleware/fun-mode]))
