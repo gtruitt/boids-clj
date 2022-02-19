@@ -141,11 +141,13 @@
   (random-state))
 
 (defn -main
-  [& _args]
+  [& args]
   (quil/defsketch sketch
     :title          "boids"
-    :size           [(:screen-size-x config)
-                     (:screen-size-y config)]
+    :size           (if (= "full" (first args))
+                      :fullscreen
+                      [(:screen-size-x config)
+                       (:screen-size-y config)])
     :settings       #(quil/smooth (:smoothing-level config))
     :setup          setup
     :update         update-state
