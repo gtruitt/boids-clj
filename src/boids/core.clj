@@ -118,8 +118,8 @@
         new-x (+ (:x boid) (* (:speed boid) (quil/cos new-heading)))
         new-y (+ (:y boid) (* (:speed boid) (quil/sin new-heading)))]
     (merge boid
-           {:x (wrap-value new-x 0 (:screen-size-x config))
-            :y (wrap-value new-y 0 (:screen-size-y config))
+           {:x (wrap-value new-x 0 (quil/width))
+            :y (wrap-value new-y 0 (quil/height))
             :heading new-heading})))
 
 (defn update-state
