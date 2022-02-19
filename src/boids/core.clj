@@ -136,10 +136,6 @@
                   (:boid-size config)))
   state)
 
-(defn mouse-released
-  [_state _event]
-  (random-state))
-
 (defn -main
   [& args]
   (quil/defsketch sketch
@@ -152,5 +148,5 @@
     :setup          setup
     :update         update-state
     :draw           draw-state
-    :mouse-released mouse-released
+    :mouse-released (fn [_ _] (random-state))
     :middleware     [middleware/fun-mode]))
