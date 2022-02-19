@@ -1,16 +1,17 @@
 (ns boids.config)
 
-(def frame-rate 30)
-(def background-shade 63)
-(def num-boids 256)
-(def boid-shade 191)
-(def boid-stroke-shade 0)
-(def boid-stroke-weight 2)
-(def boid-min-speed 4)
-(def boid-max-speed 8)
-(def boid-size 8)
-(def boid-perception-radius 128)
-(def boid-crowding-radius 32)
-(def field-size-x 1024)
-(def field-size-y 633)
-(def smoothing-level 2)
+(def config
+  {:frame-rate 30
+   :background-shade 63
+   :num-boids 256
+   :boid-shade 191
+   :boid-stroke-shade 0
+   :boid-stroke-weight 2
+   :boid-min-speed 4
+   :boid-max-speed 8
+   :boid-size 8
+   :boid-perception-radius 128
+   :boid-crowding-radius 32
+   :screen-size-x 1024
+   :screen-size-y 633
+   :smoothing-level 2})

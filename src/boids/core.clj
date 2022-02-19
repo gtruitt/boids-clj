@@ -1,65 +1,55 @@
 (ns boids.core
-  (:import (java.util UUID))
-  (:require [quil.core :as q]
-            [quil.middleware :as m]
-            [boids.config :as c]))
+  (:require [quil.core :as quil]
+            [quil.middleware :as middleware]
+            [boids.config :refer [config]])
+  (:import (java.util UUID)))
 
 (defn random-boid
   []
-  {:x (q/random (q/width))
-   :y (q/random (q/height))
-   :heading (q/random q/TWO-PI)
-   :speed (q/random c/boid-min-speed c/boid-max-speed)
-   :id (UUID/randomUUID)})
+  {:x       (quil/random (quil/width))
+   :y       (quil/random (quil/height))
+   :heading (quil/random quil/TWO-PI)
+   :speed   (quil/random (:boid-min-speed config) (:boid-max-speed config))
+   :id      (UUID/randomUUID)})
 
 (defn random-state
   []
-  {:boids (take c/num-boids (repeatedly random-boid))})
+  {:boids (take (:num-boids config) (repeatedly random-boid))})
 
 (defn setup
   []
-  (q/frame-rate c/frame-rate)
-  (q/background c/background-shade)
-  (q/fill c/boid-shade)
-  (q/stroke c/boid-stroke-shade)
-  (q/stroke-weight c/boid-stroke-weight)
+  (quil/frame-rate    (:frame-rate config))
+  (quil/background    (:background-shade config))
+  (quil/fill          (:boid-shade config))
+  (quil/stroke        (:boid-stroke-shade config))
+  (quil/stroke-weight (:boid-stroke-weight config))
   (random-state))
-
-(defn wrap-boundary
- [value max-value]
- (cond (> value max-value) (- value max-value)
-       (< value 0) (+ value max-value)
-       :else value))
 
 (defn within-distance?
   [point-a point-b distance]
-    (<= (q/dist (:x point-a) (:y point-a)
-                (:x point-b) (:y point-b))
-        distance))
+  (<= (quil/dist (:x point-a) (:y point-a)
+                 (:x point-b) (:y point-b))
+      distance))
+
+(defn boid-visible?
+  [boid-a boid-b]
+  (within-distance? boid-a boid-b (:boid-perception-radius config)))
+
+(defn visible-boids
+  [other-boids boid]
+  (filter #(boid-visible? boid %) other-boids))
+
+(defn boid-too-close?
+  [boid-a boid-b]
+  (within-distance? boid-a boid-b (:boid-crowding-radius config)))
+
+(defn too-close-boids
+  [other-boids boid]
+  (filter #(boid-too-close? boid %) other-boids))
 
 (defn boid-different?
   [boid-a boid-b]
   (not= (:id boid-a) (:id boid-b)))
-
-(defn boid-known?
-  [boid-a boid-b]
-  (within-distance? boid-a boid-b c/boid-perception-radius))
-
-(defn known-boids
- [state boid]
- (filter #(and (boid-known? boid %)
-               (boid-different? boid %))
-         (:boids state)))
-
-(defn boid-close?
-  [boid-a boid-b]
-  (within-distance? boid-a boid-b c/boid-crowding-radius))
-
-(defn close-boids
-  [state boid]
-  (filter #(and (boid-close? boid %)
-                (boid-different? boid %))
-          (:boids state)))
 
 (defn center-of
   [boids]
@@ -67,84 +57,98 @@
     {:x (/ (reduce + (map :x boids)) boid-count)
      :y (/ (reduce + (map :y boids)) boid-count)}))
 
-(defn heading-to
+(defn heading-toward
   [boid target]
   (let [relative-x (- (:x target) (:x boid))
         relative-y (- (:y target) (:y boid))
-        atan2 (q/atan2 relative-y relative-x)]
-    (if (< atan2 0) (+ atan2 q/TWO-PI) atan2)))
+        atan2 (quil/atan2 relative-y relative-x)]
+    (if (< atan2 0)
+      (+ atan2 quil/TWO-PI)
+      atan2)))
 
 (defn heading-away
   [boid target]
-  (mod (+ q/PI (heading-to boid target)) q/TWO-PI))
+  (mod (+ quil/PI (heading-toward boid target))
+       quil/TWO-PI))
 
 (defn average-angle
   [angles]
-  (q/atan2 (reduce + (map #(q/sin %) angles))
-           (reduce + (map #(q/cos %) angles))))
+  (quil/atan2 (reduce + (map #(quil/sin %) angles))
+              (reduce + (map #(quil/cos %) angles))))
 
 (defn separation
-  [state boid]
-  (let [c-boids (close-boids state boid)]
+  [other-boids boid]
+  (let [c-boids (too-close-boids other-boids boid)]
     (if (empty? c-boids)
       (:heading boid)
       (heading-away boid (center-of c-boids)))))
 
 (defn alignment
-  [state boid]
-  (let [k-boids (known-boids state boid)]
-    (if (empty? k-boids)
+  [other-boids boid]
+  (let [v-boids (visible-boids other-boids boid)]
+    (if (empty? v-boids)
       (:heading boid)
-      (average-angle (map :heading k-boids)))))
+      (average-angle (map :heading v-boids)))))
 
 (defn cohesion
-  [state boid]
-  (let [k-boids (known-boids state boid)]
-    (if (empty? k-boids)
+  [other-boids boid]
+  (let [v-boids (visible-boids other-boids boid)]
+    (if (empty? v-boids)
       (:heading boid)
-      (heading-to boid (center-of k-boids)))))
+      (heading-toward boid (center-of v-boids)))))
 
 (defn boid-heading
   [state boid]
-  (average-angle [(:heading boid)
-                  (separation state boid)
-                  (alignment state boid)
-                  (cohesion state boid)]))
+  (let [other-boids (filter #(boid-different? boid %) (:boids state))]
+    (average-angle [(:heading boid)
+                    (separation other-boids boid)
+                    (alignment other-boids boid)
+                    (cohesion other-boids boid)])))
+
+(defn wrap-value
+  [value min-value max-value]
+  (cond (> value max-value) (- value max-value)
+        (< value min-value) (+ value max-value)
+        :else value))
 
 (defn move-boid
   [state boid]
   (let [new-heading (boid-heading state boid)
-        new-x (+ (:x boid) (* (:speed boid) (q/cos new-heading)))
-        new-y (+ (:y boid) (* (:speed boid) (q/sin new-heading)))]
+        new-x (+ (:x boid) (* (:speed boid) (quil/cos new-heading)))
+        new-y (+ (:y boid) (* (:speed boid) (quil/sin new-heading)))]
     (merge boid
-           {:x (wrap-boundary new-x c/field-size-x)
-            :y (wrap-boundary new-y c/field-size-y)
+           {:x (wrap-value new-x 0 (:screen-size-x config))
+            :y (wrap-value new-y 0 (:screen-size-y config))
             :heading new-heading})))
 
 (defn update-state
   [state]
-  (update state :boids #(map (partial move-boid state) %)))
+  (update state :boids #(pmap (partial move-boid state) %)))
 
 (defn draw-state
   [state]
-  (q/background c/background-shade)
-  (doseq [b (:boids state)]
-    (q/ellipse (:x b) (:y b) c/boid-size c/boid-size))
+  (quil/background (:background-shade config))
+  (doseq [boid (:boids state)]
+    (quil/ellipse (:x boid)
+                  (:y boid)
+                  (:boid-size config)
+                  (:boid-size config)))
   state)
 
 (defn mouse-released
   [_state _event]
   (random-state))
 
-(q/defsketch sketch
-  :title "boids"
-  :size [c/field-size-x c/field-size-y]
-  :settings #(q/smooth c/smoothing-level)
-  :setup setup
-  :update update-state
-  :draw draw-state
-  :mouse-released mouse-released
-  :middleware [m/fun-mode])
+(quil/defsketch sketch
+    :title          "boids"
+    :size           [(:screen-size-x config)
+                     (:screen-size-y config)]
+    :settings       #(quil/smooth (:smoothing-level config))
+    :setup          setup
+    :update         update-state
+    :draw           draw-state
+    :mouse-released mouse-released
+    :middleware     [middleware/fun-mode])
 
 (defn -main
   [& _args])
