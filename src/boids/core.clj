@@ -100,10 +100,11 @@
 (defn boid-heading
   [state boid]
   (let [other-boids (filter #(boid-different? boid %) (:boids state))]
-    (average-angle [(:heading boid)
-                    (separation other-boids boid)
-                    (alignment other-boids boid)
-                    (cohesion other-boids boid)])))
+    (average-angle (concat
+                    (repeat (:boid-inertia config) (:heading boid))
+                    [(separation other-boids boid)
+                     (alignment other-boids boid)
+                     (cohesion other-boids boid)]))))
 
 (defn wrap-value
   [value min-value max-value]
